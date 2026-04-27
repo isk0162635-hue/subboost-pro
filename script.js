@@ -11,264 +11,208 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-let user = null;
-let currentTab = "views";
+let curUser = null;
+let curTab = 'view';
+let curTask = null;
 
-function showAuth() { document.getElementById("authModal").style.display = "flex"; }
-function closeAuth() { document.getElementById("authModal").style.display = "none"; }
-function openPost() { if(!user) return showAuth(); document.getElementById("postModal").style.display = "flex"; }
-function closePost() { document.getElementById("postModal").style.display = "none"; }
-
-async function googleLogin() {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    try {
-        await auth.signInWithPopup(provider);
-        closeAuth();
-    } catch(e) { alert("Login failed"); }
-}
-
-auth.onAuthStateChanged(async (u) => {
-    if (u) {
-        user = u;
-        document.getElementById("loginBtn").style.display = "none";
-        document.getElementById("coinBox").style.display = "flex";
-        document.getElementById("userImg").style.display = "block";
-        document.getElementById("userImg").src = u.photoURL || "https://ui-avatars.com/api/?background=ff0000&color=fff&name=User";
-        await initUser();
-        refreshCoins();
-    } else {
-        user = null;
-        document.getElementById("loginBtn").style.display = "block";
-        document.getElementById("coinBox").style.display = "none";
-        document.getElementById("userImg").style.display = "none";
-    }
-    fetchVideos();
+db.collection('users').onSnapshot(s => {
+    const el = document.getElementById('st-users');
+    if (el) el.innerText = s.size + 1400;
+});
+db.collection('campaigns').onSnapshot(s => {
+    const el = document.getElementById('st-tasks');
+    if (el) el.innerText = s.size + 52;
 });
 
+auth.onAuthStateChanged(async u => {
+    if (u) {
+        curUser = u;
+        document.getElementById('login-gate').style.display = 'none';
+        document.getElementById('nav-tabs').style.display = 'flex';
+        document.getElementById('feed-ui').style.display = 'block';
+        document.getElementById('fab-action').style.display = 'flex';
+        document.getElementById('coin-ui').style.display = 'flex';
+        document.getElementById('btn-exit').style.display = 'block';
+        await initUser();
+        renderList();
+    } else {
+        document.getElementById('login-gate').style.display = 'block';
+        document.getElementById('nav-tabs').style.display = 'none';
+        document.getElementById('feed-ui').style.display = 'none';
+        document.getElementById('fab-action').style.display = 'none';
+        document.getElementById('coin-ui').style.display = 'none';
+        document.getElementById('btn-exit').style.display = 'none';
+    }
+});
+
+async function handleLogin() {
+    try {
+        await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function handleLogout() {
+    await auth.signOut();
+    window.location.reload();
+}
+
 async function initUser() {
-    const ref = db.collection("users").doc(user.uid);
+    const ref = db.collection('users').doc(curUser.uid);
     const doc = await ref.get();
     if (!doc.exists) {
-        await ref.set({ name: user.displayName, coins: 500 });
+        await ref.set({ 
+            coins: 1000, 
+            name: curUser.displayName, 
+            createdAt: Date.now() 
+        });
     }
-}
-
-async function refreshCoins() {
-    if (!user) return;
-    const doc = await db.collection("users").doc(user.uid).get();
-    document.getElementById("coinAmount").innerText = doc.data().coins || 0;
-}
-
-async function createDemoVideos() {
-    const snap = await db.collection("videos").limit(1).get();
-    if (!snap.empty) return;
-    
-    const demos = [
-        { vid: "dQw4w9WgXcQ", title: "Never Gonna Give You Up", owner: "demo", likes: 0, subs: 0, likedBy: [], subscribedBy: [] },
-        { vid: "9bZkp7q19f0", title: "Gangnam Style", owner: "demo", likes: 0, subs: 0, likedBy: [], subscribedBy: [] },
-        { vid: "kJQP7kiw5Fk", title: "Despacito", owner: "demo", likes: 0, subs: 0, likedBy: [], subscribedBy: [] }
-    ];
-    for (const demo of demos) {
-        await db.collection("videos").add(demo);
-    }
-}
-
-function fetchVideos() {
-    const box = document.getElementById("videoList");
-    box.innerHTML = '<div style="text-align:center; padding:40px;">Loading...</div>';
-    
-    let query = db.collection("videos");
-    if (currentTab === "my" && user) {
-        query = query.where("owner", "==", user.uid);
-    }
-    
-    query.onSnapshot(async (snap) => {
-        box.innerHTML = "";
-        if (snap.empty) {
-            box.innerHTML = '<div style="text-align:center; padding:40px;">No videos found.<br><button class="login-btn" style="margin-top:15px;" onclick="openPost()">+ Upload</button></div>';
-            return;
+    ref.onSnapshot(s => {
+        if(s.exists) {
+            const bal = document.getElementById('user-bal');
+            if (bal) bal.innerText = s.data().coins.toLocaleString();
         }
-        
+    });
+}
+
+async function renderList() {
+    const grid = document.getElementById('video-grid');
+    const logs = await db.collection('users').doc(curUser.uid).collection('history').get();
+    const doneIds = logs.docs.map(d => d.id);
+
+    let baseQuery = db.collection('campaigns');
+    if (curTab === 'mine') {
+        baseQuery = baseQuery.where('owner', '==', curUser.uid);
+    } else {
+        baseQuery = baseQuery.where('type', '==', curTab);
+    }
+
+    baseQuery.orderBy('createdAt', 'desc').onSnapshot(snap => {
+        grid.innerHTML = '';
         snap.forEach(doc => {
             const data = doc.data();
-            box.appendChild(createVideoCard(doc.id, data));
+            if (curTab !== 'mine') {
+                if (data.owner === curUser.uid || doneIds.includes(doc.id) || data.qty <= 0) return;
+            }
+
+            grid.innerHTML += `
+                <div class="video-item">
+                    <div class="video-preview"><img src="https://img.youtube.com/vi/${data.vid}/hqdefault.jpg"></div>
+                    <div class="video-info">
+                        ${curTab === 'mine' ? 
+                            `<div style="font-weight:700; color:#888; margin-bottom:12px;">Remaining: ${data.qty}</div>
+                             <button class="main-btn btn-delete" onclick="deleteJob('${doc.id}')">Delete Project</button>` :
+                            `<button class="main-btn" onclick="processJob('${doc.id}', '${data.vid}', '${data.type}')">
+                                <i class="fab fa-youtube"></i> ${data.type === 'view' ? 'Watch' : 'Subscribe'} & Earn 25
+                             </button>`
+                        }
+                    </div>
+                </div>`;
         });
     });
 }
 
-function createVideoCard(id, data) {
-    const div = document.createElement("div");
-    div.className = "video-card";
+function processJob(id, vid, type) {
+    curTask = { id, vid, type };
     
-    const isLiked = user ? (data.likedBy || []).includes(user.uid) : false;
-    const isSubscribed = user ? (data.subscribedBy || []).includes(user.uid) : false;
+    const youtubeLink = `https://www.youtube.com/watch?v=${vid}`;
+    window.open(youtubeLink, '_blank');
+
+    const lockScreen = document.getElementById('action-lock-screen');
+    const lockTimer = document.getElementById('lock-timer-display');
+    lockScreen.style.display = 'flex';
     
-    div.innerHTML = `
-        <iframe class="yt-iframe" src="https://www.youtube.com/embed/${data.vid}?autoplay=0&modestbranding=1&rel=0" frameborder="0" allowfullscreen></iframe>
-        <div class="card-body">
-            <div class="reward-badge">
-                <i class="fas fa-coins"></i> +20 per Like | +50 per Subscribe
-            </div>
-            <div class="video-title">${escapeHtml(data.title)}</div>
-            <div class="action-buttons">
-                <button class="action-btn like-btn ${isLiked ? 'liked' : ''}" onclick="handleLike('${id}')">
-                    <i class="fas fa-thumbs-up"></i> Like ${data.likes || 0}
-                </button>
-                <button class="action-btn subs-btn ${isSubscribed ? 'subscribed' : ''}" onclick="handleSubscribe('${id}')">
-                    <i class="fab fa-youtube"></i> Subscribe ${data.subs || 0}
-                </button>
-            </div>
-            ${data.owner !== user?.uid ? '<button class="btn-main" onclick="watchAndEarn(\''+id+'\')"><i class="fas fa-play"></i> Watch & Earn +10</button>' : '<div style="text-align:center; color:#666; padding:10px;">Your video</div>'}
-        </div>
-    `;
-    return div;
+    let time = 15;
+    lockTimer.innerText = time;
+
+    const timer = setInterval(() => {
+        time--;
+        lockTimer.innerText = time;
+        if (time <= 0) {
+            clearInterval(timer);
+            lockScreen.style.display = 'none';
+            
+            setTimeout(async () => {
+                try {
+                    const batch = db.batch();
+                    const uRef = db.collection('users').doc(curUser.uid);
+                    const cRef = db.collection('campaigns').doc(curTask.id);
+                    const hRef = uRef.collection('history').doc(curTask.id);
+
+                    batch.update(uRef, { coins: firebase.firestore.FieldValue.increment(25) });
+                    batch.update(cRef, { qty: firebase.firestore.FieldValue.increment(-1) });
+                    batch.set(hRef, { time: Date.now() });
+
+                    await batch.commit();
+                    alert("Successfully Added 25 Coins!");
+                    renderList();
+                } catch (e) {
+                    console.error(e);
+                }
+            }, 500);
+        }
+    }, 1000);
 }
 
-function escapeHtml(str) {
-    if (!str) return "";
-    return str.replace(/[&<>]/g, function(m) {
-        if (m === "&") return "&amp;";
-        if (m === "<") return "&lt;";
-        if (m === ">") return "&gt;";
-        return m;
-    });
-}
-
-async function handleLike(videoId) {
-    if (!user) return showAuth();
-    
-    const videoRef = db.collection("videos").doc(videoId);
-    const video = await videoRef.get();
-    const data = video.data();
-    
-    if (data.owner === user.uid) {
-        alert("You cannot like your own video");
-        return;
+async function deleteJob(id) {
+    if(confirm("Delete?")) {
+        await db.collection('campaigns').doc(id).delete();
+        renderList();
     }
-    
-    const likedBy = data.likedBy || [];
-    if (likedBy.includes(user.uid)) {
-        alert("You already liked this video");
-        return;
-    }
-    
-    await videoRef.update({
-        likes: firebase.firestore.FieldValue.increment(1),
-        likedBy: firebase.firestore.FieldValue.arrayUnion(user.uid)
-    });
-    
-    await db.collection("users").doc(user.uid).update({
-        coins: firebase.firestore.FieldValue.increment(20)
-    });
-    
-    await db.collection("users").doc(user.uid).collection("history").doc(videoId + "_like").set({
-        type: "like", at: new Date()
-    });
-    
-    refreshCoins();
-    alert("+20 coins for liking!");
 }
 
-async function handleSubscribe(videoId) {
-    if (!user) return showAuth();
-    
-    const videoRef = db.collection("videos").doc(videoId);
-    const video = await videoRef.get();
-    const data = video.data();
-    
-    if (data.owner === user.uid) {
-        alert("You cannot subscribe to your own channel");
-        return;
+function setTab(t, event) {
+    curTab = t;
+    const links = document.querySelectorAll('.tab-link');
+    links.forEach(el => el.classList.remove('active'));
+    if (event && event.target) {
+        event.target.classList.add('active');
     }
-    
-    const subscribedBy = data.subscribedBy || [];
-    if (subscribedBy.includes(user.uid)) {
-        alert("You already subscribed");
-        return;
-    }
-    
-    await videoRef.update({
-        subs: firebase.firestore.FieldValue.increment(1),
-        subscribedBy: firebase.firestore.FieldValue.arrayUnion(user.uid)
-    });
-    
-    await db.collection("users").doc(user.uid).update({
-        coins: firebase.firestore.FieldValue.increment(50)
-    });
-    
-    await db.collection("users").doc(user.uid).collection("history").doc(videoId + "_sub").set({
-        type: "subscribe", at: new Date()
-    });
-    
-    refreshCoins();
-    alert("+50 coins for subscribing!");
+    renderList();
 }
 
-async function watchAndEarn(videoId) {
-    if (!user) return showAuth();
+function updateCost() {
+    const q = document.getElementById('inp-qty').value || 0;
+    document.getElementById('cost-display').innerText = q * 125;
+}
+
+async function startCampaign() {
+    const url = document.getElementById('inp-url').value;
+    const type = document.getElementById('inp-type').value;
+    const qtyInput = document.getElementById('inp-qty').value;
+    const qty = parseInt(qtyInput);
+    const cost = qty * 125;
     
-    const historyCheck = await db.collection("users").doc(user.uid).collection("history").doc(videoId + "_watch").get();
-    if (historyCheck.exists) {
-        alert("You already earned from this video");
-        return;
+    let vid = url.split('v=')[1]?.split('&')[0] || url.split('youtu.be/')[1]?.split('?')[0] || url.split('shorts/')[1]?.split('?')[0];
+    
+    if (!vid || isNaN(qty) || qty < 10) {
+        return alert("Error: Please provide a valid YouTube link and minimum 10 quantity.");
     }
-    
-    const videoRef = db.collection("videos").doc(videoId);
-    const video = await videoRef.get();
-    const data = video.data();
-    
-    if (data.owner === user.uid) {
-        alert("You cannot earn from your own video");
-        return;
+
+    const uDoc = await db.collection('users').doc(curUser.uid).get();
+    if (uDoc.data().coins < cost) {
+        return alert("No coins enough to launch this project.");
     }
-    
-    await db.collection("users").doc(user.uid).update({
-        coins: firebase.firestore.FieldValue.increment(10)
-    });
-    
-    await db.collection("users").doc(user.uid).collection("history").doc(videoId + "_watch").set({
-        type: "watch", at: new Date()
-    });
-    
-    refreshCoins();
-    alert("+10 coins for watching!");
+
+    try {
+        await db.collection('users').doc(curUser.uid).update({ 
+            coins: firebase.firestore.FieldValue.increment(-cost) 
+        });
+        await db.collection('campaigns').add({ 
+            vid, 
+            type, 
+            qty, 
+            owner: curUser.uid, 
+            createdAt: Date.now() 
+        });
+        alert("Live!");
+        closeModal();
+        renderList();
+    } catch (e) {
+        console.error(e);
+    }
 }
 
-async function savePost() {
-    if (!user) return showAuth();
-    
-    const url = document.getElementById("postUrl").value.trim();
-    const title = document.getElementById("postTitle").value.trim();
-    
-    let vid = "";
-    if (url.includes("v=")) vid = url.split("v=")[1].split("&")[0];
-    else if (url.includes("youtu.be/")) vid = url.split("youtu.be/")[1].split("?")[0];
-    else if (url.includes("shorts/")) vid = url.split("shorts/")[1].split("?")[0];
-    
-    if (!vid || !title) return alert("Invalid YouTube link");
-    
-    const userDoc = await db.collection("users").doc(user.uid).get();
-    if (userDoc.data().coins < 300) return alert("Need 300 coins to post");
-    
-    await db.collection("users").doc(user.uid).update({
-        coins: firebase.firestore.FieldValue.increment(-300)
-    });
-    
-    await db.collection("videos").add({
-        vid, title, owner: user.uid, likes: 0, subs: 0, likedBy: [], subscribedBy: []
-    });
-    
-    alert("Video posted!");
-    closePost();
-    refreshCoins();
-}
-
-function switchTab(tab) {
-    currentTab = tab;
-    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
-    event.target.classList.add("active");
-    fetchVideos();
-}
-
-createDemoVideos();
-window.onclick = (e) => { if(e.target.classList.contains('modal')) e.target.style.display = 'none'; };
+function openModal() { document.getElementById('post-modal-ui').style.display = 'block'; }
+function closeModal() { document.getElementById('post-modal-ui').style.display = 'none'; }
