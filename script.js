@@ -12,120 +12,123 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 let activeUser = null;
+let userCoins = 0;
 
-auth.onAuthStateChanged(async (user) => {
+auth.onAuthStateChanged(user => {
     if (user) {
         activeUser = user;
         document.getElementById('l-btn').style.display = 'none';
-        document.getElementById('u-avatar').style.display = 'block';
-        document.getElementById('u-avatar').src = user.photoURL;
         document.getElementById('coin-ui').style.display = 'flex';
-        await handleUser(user);
+        db.collection('users').doc(user.uid).onSnapshot(s => {
+            if(s.exists) {
+                userCoins = s.data().coins;
+                document.getElementById('user-bal').innerText = userCoins;
+            } else {
+                db.collection('users').doc(user.uid).set({ coins: 200 });
+            }
+        });
     } else {
         activeUser = null;
         document.getElementById('l-btn').style.display = 'block';
-        document.getElementById('u-avatar').style.display = 'none';
         document.getElementById('coin-ui').style.display = 'none';
-        document.getElementById('ref-panel').style.display = 'none';
     }
     loadVideos();
 });
 
-async function handleUser(user) {
-    const ref = db.collection('users').doc(user.uid);
-    const snap = await ref.get();
-    
-    if (!snap.exists) {
-        const myID = user.uid.substring(0, 8).toUpperCase();
-        await ref.set({ coins: 500, referID: myID, joined: Date.now() });
-        
-        // Referral Logic Official
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get('ref');
-        if (code) {
-            const masterQuery = await db.collection('users').where('referID', '==', code.toUpperCase()).get();
-            if (!masterQuery.empty) {
-                const masterDoc = masterQuery.docs[0];
-                if (masterDoc.id !== user.uid) {
-                    // Update both with 6000 coins
-                    await db.collection('users').doc(masterDoc.id).update({ 
-                        coins: firebase.firestore.FieldValue.increment(6000) 
-                    });
-                    await ref.update({ 
-                        coins: firebase.firestore.FieldValue.increment(6000) 
-                    });
-                }
-            }
-        }
+function switchTab(t) {
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    if(t === 'upload') {
+        document.getElementById('upload-box').style.display = 'block';
+        document.querySelector('.tab:nth-child(2)').classList.add('active');
+    } else if(t === 'views') {
+        document.getElementById('upload-box').style.display = 'none';
+        document.querySelector('.tab:nth-child(1)').classList.add('active');
+    } else {
+        document.getElementById('upload-box').style.display = 'none';
+        document.querySelector('.tab:nth-child(3)').classList.add('active');
+        showToast("Referral link: share this app");
     }
-    
-    ref.onSnapshot(s => {
-        if(s.exists) {
-            document.getElementById('user-bal').innerText = s.data().coins.toLocaleString();
-            document.getElementById('ref-code-id').innerText = s.data().referID;
-        }
-    });
 }
 
+async function uploadVideo() {
+    if(!activeUser) {
+        googleSignIn();
+        return;
+    }
+    const vid = document.getElementById('yt-link').value.trim();
+    if(userCoins < 150) return showToast("Need 150 coins");
+    if(vid.length < 5) return showToast("Invalid ID");
+
+    await db.collection('campaigns').add({ 
+        vid: vid, 
+        owner: activeUser.uid,
+        timestamp: Date.now()
+    });
+    await db.collection('users').doc(activeUser.uid).update({
+        coins: firebase.firestore.FieldValue.increment(-50)
+    });
+    showToast("Video shared! -50 coins");
+    document.getElementById('yt-link').value = '';
+}
+
+let currentTimer = null;
+let currentVideoId = null;
+
 function startWatching(vid) {
-    if(!activeUser) return openAuth();
-    
+    if(!activeUser) {
+        googleSignIn();
+        return;
+    }
+    currentVideoId = vid;
     const overlay = document.getElementById('timer-overlay');
     const display = document.getElementById('cd-ui');
-    let timeLeft = 30; // Official 30 seconds
-    
+    const actionArea = document.getElementById('action-area');
+    let timeLeft = 20;
+
     overlay.style.display = 'flex';
-    const win = window.open(`https://youtube.com/watch?v=${vid}`, '_blank');
-    
-    const timer = setInterval(async () => {
+    actionArea.style.display = 'none';
+    document.getElementById('status-msg').innerHTML = 'Watch video on YouTube';
+    display.innerText = timeLeft;
+
+    window.open(`https://www.youtube.com/watch?v=${vid}`, '_blank');
+
+    if(currentTimer) clearInterval(currentTimer);
+    currentTimer = setInterval(() => {
         timeLeft--;
         display.innerText = timeLeft;
-        
-        if (timeLeft <= 0) {
-            clearInterval(timer);
-            overlay.style.display = 'none';
-            if (win) win.close();
-            
-            // Add 50 coins for watching
-            await db.collection('users').doc(activeUser.uid).update({ 
-                coins: firebase.firestore.FieldValue.increment(50) 
-            });
-            showToast("Success! 50 Coins Added.");
+        if(timeLeft <= 0) {
+            clearInterval(currentTimer);
+            currentTimer = null;
+            actionArea.style.display = 'block';
+            document.getElementById('status-msg').innerHTML = 'Click DONE after Like & Subscribe';
         }
     }, 1000);
 }
 
-function loadVideos() {
-    const feed = document.getElementById('video-feed');
-    db.collection('campaigns').limit(15).onSnapshot(q => {
-        feed.innerHTML = '';
-        if(q.empty) {
-            feed.innerHTML = '<p style="text-align:center; padding:20px; opacity:0.5;">No videos available...</p>';
-            return;
-        }
-        q.forEach(doc => {
-            const d = doc.data();
-            feed.innerHTML += `
-                <div class="v-card">
-                    <div class="thumb">
-                        <img src="https://img.youtube.com/vi/${d.vid}/maxresdefault.jpg">
-                        <i class="fas fa-play play-icon"></i>
-                    </div>
-                    <div class="btn-area">
-                        <button class="btn-watch" onclick="startWatching('${d.vid}')">
-                            <i class="fab fa-youtube"></i> WATCH & EARN 50 COINS
-                        </button>
-                    </div>
-                </div>`;
-        });
+async function verifyAction() {
+    if(!activeUser) return;
+    await db.collection('users').doc(activeUser.uid).update({
+        coins: firebase.firestore.FieldValue.increment(25)
     });
+    document.getElementById('timer-overlay').style.display = 'none';
+    showToast("+25 coins added");
+    if(currentTimer) clearInterval(currentTimer);
+    currentTimer = null;
 }
 
-function copyReferral() {
-    const id = document.getElementById('ref-code-id').innerText;
-    const officialLink = window.location.origin + window.location.pathname + "?ref=" + id;
-    navigator.clipboard.writeText(officialLink).then(() => {
-        showToast("Official Referral Link Copied!");
+function loadVideos() {
+    const feed = document.getElementById('video-feed');
+    db.collection('campaigns').orderBy('timestamp', 'desc').onSnapshot(q => {
+        feed.innerHTML = '';
+        q.forEach(doc => {
+            const d = doc.data();
+            if(!d.vid) return;
+            feed.innerHTML += `
+                <div class="v-card">
+                    <div class="thumb"><img src="https://img.youtube.com/vi/${d.vid}/mqdefault.jpg" alt="thumbnail"></div>
+                    <div style="padding:15px;"><button class="btn-main" onclick="startWatching('${d.vid}')">WATCH & EARN</button></div>
+                </div>`;
+        });
     });
 }
 
@@ -133,18 +136,13 @@ function showToast(msg) {
     const t = document.getElementById("toast");
     t.innerText = msg;
     t.className = "show";
-    setTimeout(() => { t.className = t.className.replace("show", ""); }, 3000);
+    setTimeout(() => t.className = "", 3000);
 }
 
-function showRefer() {
-    const panel = document.getElementById('ref-panel');
-    panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
-}
-
-function openAuth() { document.getElementById('auth-modal').style.display = 'flex'; }
-async function googleSignIn() { 
+async function googleSignIn() {
     try {
         await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-        document.getElementById('auth-modal').style.display = 'none';
-    } catch(e) { alert("Sign in failed. Try again."); }
+    } catch(e) {
+        showToast("Login failed");
+    }
 }
