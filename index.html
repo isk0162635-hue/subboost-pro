@@ -21,9 +21,10 @@
         .tab { padding: 6px 16px; border-radius: 50px; font-size: 11px; font-weight: 700; color: #64748b; cursor: pointer; }
         .tab.active { background: #fee2e2; color: var(--p); }
         .container { max-width: 450px; margin: 0 auto; padding: 15px; }
-        .ref-card { background: linear-gradient(135deg, #4f46e5, #7c3aed); padding: 20px; border-radius: 20px; color: #fff; text-align: center; margin-bottom: 20px; display: none; }
-        .ref-id-display { background: rgba(255,255,255,0.15); padding: 12px; border-radius: 12px; font-size: 22px; font-weight: 800; margin: 10px 0; letter-spacing: 4px; border: 1px dashed rgba(255,255,255,0.5); }
-        .btn-copy { background: #fff; color: #4f46e5; border: none; padding: 8px 20px; border-radius: 50px; font-size: 11px; font-weight: 800; cursor: pointer; }
+        .ref-card { background: linear-gradient(135deg, #6366f1, #a855f7); padding: 25px; border-radius: 24px; color: #fff; text-align: center; margin-bottom: 20px; display: none; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2); border: 1px solid rgba(255,255,255,0.1); }
+        .ref-id-display { background: rgba(255,255,255,0.2); padding: 15px; border-radius: 15px; font-size: 24px; font-weight: 800; margin: 15px 0; letter-spacing: 5px; border: 2px dashed rgba(255,255,255,0.4); text-transform: uppercase; }
+        .btn-copy { background: #fff; color: #6366f1; border: none; padding: 12px 25px; border-radius: 50px; font-size: 13px; font-weight: 800; cursor: pointer; transition: 0.3s; width: 100%; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .btn-copy:active { transform: scale(0.95); }
         .v-card { background: var(--s); border-radius: 20px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
         .thumb { width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; }
         .thumb img { width: 100%; height: 100%; object-fit: cover; }
@@ -36,9 +37,14 @@
         .auth-box { background: var(--s); width: 100%; max-width: 320px; border-radius: 25px; padding: 30px; text-align: center; }
         .drop-menu { display: none; position: absolute; top: 65px; right: 16px; background: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-radius: 15px; padding: 8px; z-index: 1500; border: 1px solid #eee; }
         .drop-menu button { background: #fee2e2; color: var(--p); border: none; padding: 10px 20px; border-radius: 10px; font-weight: 700; font-size: 12px; width: 100%; cursor: pointer; }
+        #toast { visibility: hidden; min-width: 200px; background-color: #333; color: #fff; text-align: center; border-radius: 50px; padding: 12px; position: fixed; z-index: 6000; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 13px; font-weight: 600; }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
     </style>
 </head>
 <body>
+    <div id="toast">Link Copied!</div>
     <div id="timer-overlay">
         <div class="t-circle" id="cd-ui">00</div>
     </div>
@@ -58,16 +64,17 @@
     <div class="tabs">
         <div class="tab active">VIEWS</div>
         <div class="tab">SUBSCRIBE</div>
-        <div class="tab">PROJECTS</div>
+        <div class="tab">REFER</div>
     </div>
     <div class="container">
+        <div id="ref-panel" class="ref-card">
+            <p style="font-size:13px; font-weight:700; text-transform: uppercase; opacity: 0.9;">Invite Friends</p>
+            <p style="font-size:11px; margin-bottom: 5px;">Earn 6,000 coins for every signup</p>
+            <div id="ref-code-id" class="ref-id-display">--------</div>
+            <button class="btn-copy" onclick="copyReferral()"><i class="far fa-copy"></i> COPY REFER LINK</button>
+        </div>
         <div class="ad-slot">
             <script src="https://pl28977920.profitablecpmratenetwork.com/3a/cf/61/3acf61a15f068eada003d330c83ccad3.js"></script>
-        </div>
-        <div id="ref-panel" class="ref-card">
-            <p style="font-size:11px; font-weight:600;">Share & Earn 7,000 Coins</p>
-            <div id="ref-code-id" class="ref-id-display">--------</div>
-            <button class="btn-copy" onclick="copyReferral()">COPY LINK</button>
         </div>
         <div id="video-feed"></div>
         <div class="ad-slot">

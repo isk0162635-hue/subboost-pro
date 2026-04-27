@@ -41,13 +41,15 @@ async function handleUser(user) {
     if (!snap.exists) {
         const myID = user.uid.substring(0, 8).toUpperCase();
         await ref.set({ coins: 450, referID: myID, joined: Date.now() });
+        
         const params = new URLSearchParams(window.location.search);
         const code = params.get('ref');
         if (code) {
             const master = await db.collection('users').where('referID', '==', code.toUpperCase()).get();
             if (!master.empty && master.docs[0].id !== user.uid) {
-                await db.collection('users').doc(master.docs[0].id).update({ coins: firebase.firestore.FieldValue.increment(7000) });
-                await ref.update({ coins: firebase.firestore.FieldValue.increment(7000) });
+                // Reward both master and new user with 6000 coins
+                await db.collection('users').doc(master.docs[0].id).update({ coins: firebase.firestore.FieldValue.increment(6000) });
+                await ref.update({ coins: firebase.firestore.FieldValue.increment(6000) });
             }
         }
     }
@@ -60,6 +62,7 @@ async function handleUser(user) {
 }
 
 function startWatching(vid) {
+    if(!activeUser) return openAuth();
     const overlay = document.getElementById('timer-overlay');
     const display = document.getElementById('cd-ui');
     const times = [25, 30, 32];
@@ -84,14 +87,27 @@ function loadVideos() {
         feed.innerHTML = '';
         q.forEach(doc => {
             const d = doc.data();
-            feed.innerHTML += `<div class="v-card"><div class="thumb"><img src="https://img.youtube.com/vi/${d.vid}/mqdefault.jpg"></div><div class="btn-area"><button class="btn-watch" onclick="startWatching('${d.vid}')"><i class="fab fa-youtube"></i> WATCH & EARN 25</button></div></div>`;
+            feed.innerHTML += `
+                <div class="v-card">
+                    <div class="thumb"><img src="https://img.youtube.com/vi/${d.vid}/mqdefault.jpg"></div>
+                    <div class="btn-area">
+                        <button class="btn-watch" onclick="startWatching('${d.vid}')">
+                            <i class="fab fa-youtube"></i> WATCH & EARN 25
+                        </button>
+                    </div>
+                </div>`;
         });
     });
 }
 
 function copyReferral() {
     const id = document.getElementById('ref-code-id').innerText;
-    navigator.clipboard.writeText("https://subboost-pro.netlify.app/?ref=" + id);
+    const link = window.location.origin + window.location.pathname + "?ref=" + id;
+    navigator.clipboard.writeText(link).then(() => {
+        const toast = document.getElementById("toast");
+        toast.className = "show";
+        setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+    });
 }
 
 function openAuth() { document.getElementById('auth-modal').style.display = 'flex'; }
