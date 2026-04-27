@@ -3,89 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SubBoost Pro - Official</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <style>
-        :root { --p: #ff0000; --bg: #f8fafc; --s: #ffffff; }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { background: var(--bg); color: #1e293b; }
-        .nav { background: var(--s); height: 60px; display: flex; justify-content: space-between; align-items: center; padding: 0 16px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .logo { font-size: 18px; font-weight: 800; color: var(--p); letter-spacing: -0.5px; }
-        .nav-right { display: flex; align-items: center; gap: 10px; }
-        .coin-p { background: #fffbeb; border: 1px solid #fde68a; padding: 4px 12px; border-radius: 50px; font-weight: 700; color: #b45309; font-size: 12px; display: none; align-items: center; gap: 5px; }
-        .u-pic { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: none; object-fit: cover; border: 1px solid #ddd; }
-        .tabs { display: flex; justify-content: center; background: var(--s); padding: 8px 0; border-bottom: 1px solid #e2e8f0; gap: 15px; }
-        .tab { padding: 6px 16px; border-radius: 50px; font-size: 11px; font-weight: 700; color: #64748b; cursor: pointer; }
+        :root { --p: #ff0000; --bg: #f1f5f9; --s: #ffffff; --primary-grad: linear-gradient(135deg, #6366f1, #a855f7); }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: #1e293b; line-height: 1.5; }
+        .nav { background: var(--s); height: 65px; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .logo { font-size: 20px; font-weight: 800; color: var(--p); display: flex; align-items: center; gap: 8px; }
+        .coin-box { background: #fffbeb; border: 1.5px solid #fde68a; padding: 6px 14px; border-radius: 50px; font-weight: 800; color: #b45309; font-size: 13px; display: none; align-items: center; gap: 6px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); }
+        .u-pic { width: 38px; height: 38px; border-radius: 50%; cursor: pointer; display: none; border: 2px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .tabs { display: flex; justify-content: space-around; background: var(--s); padding: 12px 0; border-bottom: 1px solid #e2e8f0; position: sticky; top: 65px; z-index: 999; }
+        .tab { padding: 8px 20px; border-radius: 50px; font-size: 12px; font-weight: 700; color: #64748b; cursor: pointer; transition: 0.3s; }
         .tab.active { background: #fee2e2; color: var(--p); }
-        .container { max-width: 450px; margin: 0 auto; padding: 15px; }
-        .ref-card { background: linear-gradient(135deg, #6366f1, #a855f7); padding: 25px; border-radius: 24px; color: #fff; text-align: center; margin-bottom: 20px; display: none; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2); border: 1px solid rgba(255,255,255,0.1); }
-        .ref-id-display { background: rgba(255,255,255,0.2); padding: 15px; border-radius: 15px; font-size: 24px; font-weight: 800; margin: 15px 0; letter-spacing: 5px; border: 2px dashed rgba(255,255,255,0.4); text-transform: uppercase; }
-        .btn-copy { background: #fff; color: #6366f1; border: none; padding: 12px 25px; border-radius: 50px; font-size: 13px; font-weight: 800; cursor: pointer; transition: 0.3s; width: 100%; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .btn-copy:active { transform: scale(0.95); }
-        .v-card { background: var(--s); border-radius: 20px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
-        .thumb { width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; }
-        .thumb img { width: 100%; height: 100%; object-fit: cover; }
-        .btn-area { padding: 12px; display: flex; justify-content: center; }
-        .btn-watch { width: 90%; background: var(--p); color: #fff; border: none; padding: 12px; border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(255,0,0,0.2); }
-        .ad-slot { display: flex; justify-content: center; margin: 15px 0; overflow: hidden; border-radius: 10px; }
-        #timer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 5000; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
-        .t-circle { font-size: 45px; font-weight: 800; border: 6px solid var(--p); width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin-bottom: 20px; }
-        .auth-m { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(5px); }
-        .auth-box { background: var(--s); width: 100%; max-width: 320px; border-radius: 25px; padding: 30px; text-align: center; }
-        .drop-menu { display: none; position: absolute; top: 65px; right: 16px; background: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-radius: 15px; padding: 8px; z-index: 1500; border: 1px solid #eee; }
-        .drop-menu button { background: #fee2e2; color: var(--p); border: none; padding: 10px 20px; border-radius: 10px; font-weight: 700; font-size: 12px; width: 100%; cursor: pointer; }
-        #toast { visibility: hidden; min-width: 200px; background-color: #333; color: #fff; text-align: center; border-radius: 50px; padding: 12px; position: fixed; z-index: 6000; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 13px; font-weight: 600; }
+        .container { max-width: 480px; margin: 0 auto; padding: 20px; }
+        .ref-card { background: var(--primary-grad); padding: 25px; border-radius: 28px; color: #fff; text-align: center; margin-bottom: 25px; display: none; box-shadow: 0 15px 30px rgba(99, 102, 241, 0.3); }
+        .ref-title { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; margin-bottom: 5px; }
+        .ref-id-box { background: rgba(255,255,255,0.15); padding: 18px; border-radius: 18px; font-size: 26px; font-weight: 800; margin: 15px 0; letter-spacing: 6px; border: 2px dashed rgba(255,255,255,0.4); text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn-copy { background: #fff; color: #6366f1; border: none; padding: 14px; border-radius: 18px; font-size: 14px; font-weight: 800; cursor: pointer; width: 100%; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-copy:active { transform: scale(0.96); }
+        .v-card { background: var(--s); border-radius: 24px; overflow: hidden; margin-bottom: 25px; box-shadow: 0 8px 20px rgba(0,0,0,0.04); border: 1px solid #edf2f7; transition: 0.3s; }
+        .thumb { width: 100%; aspect-ratio: 16/9; position: relative; background: #000; }
+        .thumb img { width: 100%; height: 100%; object-fit: cover; opacity: 0.9; }
+        .play-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 40px; opacity: 0.8; }
+        .btn-area { padding: 15px; }
+        .btn-watch { width: 100%; background: var(--p); color: #fff; border: none; padding: 14px; border-radius: 16px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 6px 15px rgba(255,0,0,0.25); }
+        #timer-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98); z-index: 9999; flex-direction: column; align-items: center; justify-content: center; color: #fff; backdrop-filter: blur(10px); }
+        .t-circle { font-size: 50px; font-weight: 800; border: 8px solid var(--p); width: 130px; height: 130px; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin-bottom: 25px; box-shadow: 0 0 30px rgba(255,0,0,0.3); animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        #toast { visibility: hidden; min-width: 250px; background: #1e293b; color: #fff; text-align: center; border-radius: 15px; padding: 16px; position: fixed; z-index: 10000; left: 50%; bottom: 40px; transform: translateX(-50%); font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
-        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
-        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 40px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 40px; opacity: 1;} to {bottom: 0; opacity: 0;} }
     </style>
 </head>
 <body>
-    <div id="toast">Link Copied!</div>
+    <div id="toast">Official Link Copied!</div>
     <div id="timer-overlay">
-        <div class="t-circle" id="cd-ui">00</div>
+        <div class="t-circle" id="cd-ui">30</div>
+        <p style="font-weight: 700; font-size: 16px;">Watching Video...</p>
+        <p style="opacity: 0.7; font-size: 12px; margin-top: 10px;">Don't close the video tab</p>
     </div>
     <nav class="nav">
-        <div class="logo">SubBoost</div>
+        <div class="logo"><i class="fab fa-youtube"></i> SubBoost</div>
         <div class="nav-right">
-            <div class="coin-p" id="coin-ui"><i class="fas fa-coins"></i> <span id="user-bal">0</span></div>
+            <div class="coin-box" id="coin-ui"><i class="fas fa-coins"></i> <span id="user-bal">0</span></div>
             <img src="" id="u-avatar" class="u-pic" onclick="toggleMenu()">
-            <button id="l-btn" onclick="openAuth()" style="border:none; background:#f1f5f9; padding:6px 14px; border-radius:50px; font-weight:700; font-size:11px;">LOGIN</button>
+            <button id="l-btn" onclick="openAuth()" style="border:none; background:var(--p); color:#fff; padding:10px 20px; border-radius:12px; font-weight:700; font-size:12px; box-shadow: 0 4px 10px rgba(255,0,0,0.2);">LOGIN</button>
         </div>
-        <div id="logout-menu" class="drop-menu"><button onclick="logout()">LOGOUT</button></div>
     </nav>
-    <div class="ad-slot">
-        <script>atOptions={'key':'41a66422acc4e8b9a95d9f2bb2c5bdd1','format':'iframe','height':90,'width':728,'params':{}};</script>
-        <script src="https://www.highperformanceformat.com/41a66422acc4e8b9a95d9f2bb2c5bdd1/invoke.js"></script>
-    </div>
     <div class="tabs">
-        <div class="tab active">VIEWS</div>
-        <div class="tab">SUBSCRIBE</div>
-        <div class="tab">REFER</div>
+        <div class="tab active"><i class="fas fa-play-circle"></i> VIEWS</div>
+        <div class="tab"><i class="fas fa-user-plus"></i> SUBS</div>
+        <div class="tab" onclick="showRefer()"><i class="fas fa-gift"></i> REFER</div>
     </div>
     <div class="container">
         <div id="ref-panel" class="ref-card">
-            <p style="font-size:13px; font-weight:700; text-transform: uppercase; opacity: 0.9;">Invite Friends</p>
-            <p style="font-size:11px; margin-bottom: 5px;">Earn 6,000 coins for every signup</p>
-            <div id="ref-code-id" class="ref-id-display">--------</div>
-            <button class="btn-copy" onclick="copyReferral()"><i class="far fa-copy"></i> COPY REFER LINK</button>
-        </div>
-        <div class="ad-slot">
-            <script src="https://pl28977920.profitablecpmratenetwork.com/3a/cf/61/3acf61a15f068eada003d330c83ccad3.js"></script>
+            <p class="ref-title">Invite & Earn Official</p>
+            <p style="font-size:12px; opacity: 0.8;">Get 6,000 coins instantly for each friend</p>
+            <div id="ref-code-id" class="ref-id-box">--------</div>
+            <button class="btn-copy" onclick="copyReferral()"><i class="far fa-copy"></i> COPY OFFICIAL LINK</button>
         </div>
         <div id="video-feed"></div>
-        <div class="ad-slot">
-            <script>atOptions={'key':'16cc1a4969502ddb6b19ef798c3cd03a','format':'iframe','height':60,'width':468,'params':{}};</script>
-            <script src="https://www.highperformanceformat.com/16cc1a4969502ddb6b19ef798c3cd03a/invoke.js"></script>
-        </div>
     </div>
     <div id="auth-modal" class="auth-m">
         <div class="auth-box">
-            <i class="fab fa-youtube" style="font-size:50px; color:var(--p); margin-bottom:15px;"></i>
-            <button onclick="googleSignIn()" style="width:100%; background:var(--p); color:#fff; border:none; padding:14px; border-radius:15px; font-weight:700; cursor:pointer; font-size:13px;"><i class="fab fa-google"></i> GOOGLE SIGN IN</button>
+            <i class="fab fa-youtube" style="font-size:60px; color:var(--p); margin-bottom:20px;"></i>
+            <h2 style="margin-bottom: 10px;">Welcome Back</h2>
+            <p style="font-size: 13px; color: #64748b; margin-bottom: 25px;">Sign in to start earning coins</p>
+            <button onclick="googleSignIn()" style="width:100%; background:#1e293b; color:#fff; border:none; padding:16px; border-radius:16px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px;"><i class="fab fa-google"></i> CONTINUE WITH GOOGLE</button>
         </div>
     </div>
     <script src="script.js"></script>
