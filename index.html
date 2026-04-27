@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <style>
+        :root { --p: #ff0000; --bg: #f8fafc; --s: #ffffff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg); color: #1e293b; overflow-x: hidden; }
+        .nav { background: var(--s); height: 60px; display: flex; justify-content: space-between; align-items: center; padding: 0 16px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .logo { font-size: 18px; font-weight: 800; color: var(--p); letter-spacing: -0.5px; }
+        .nav-right { display: flex; align-items: center; gap: 10px; }
+        .coin-p { background: #fffbeb; border: 1px solid #fde68a; padding: 4px 12px; border-radius: 50px; font-weight: 700; color: #b45309; font-size: 12px; display: none; align-items: center; gap: 5px; }
+        .u-pic { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: none; object-fit: cover; border: 1px solid #ddd; }
+        .tabs { display: flex; justify-content: center; background: var(--s); padding: 8px 0; border-bottom: 1px solid #e2e8f0; gap: 15px; }
+        .tab { padding: 6px 16px; border-radius: 50px; font-size: 11px; font-weight: 700; color: #64748b; cursor: pointer; transition: 0.3s; }
+        .tab.active { background: #fee2e2; color: var(--p); }
+        .container { max-width: 450px; margin: 0 auto; padding: 15px; }
+        .ref-card { background: linear-gradient(135deg, #4f46e5, #7c3aed); padding: 20px; border-radius: 20px; color: #fff; text-align: center; margin-bottom: 20px; display: none; }
+        .ref-id-display { background: rgba(255,255,255,0.15); padding: 12px; border-radius: 12px; font-size: 22px; font-weight: 800; margin: 10px 0; letter-spacing: 4px; border: 1px dashed rgba(255,255,255,0.5); }
+        .btn-copy { background: #fff; color: #4f46e5; border: none; padding: 8px 20px; border-radius: 50px; font-size: 11px; font-weight: 800; cursor: pointer; }
+        .v-card { background: var(--s); border-radius: 20px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        .thumb { width: 100%; aspect-ratio: 16/9; background: #000; position: relative; }
+        .thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .btn-area { padding: 12px; display: flex; justify-content: center; }
+        .btn-watch { width: 90%; background: var(--p); color: #fff; border: none; padding: 12px; border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(255,0,0,0.2); }
+        #video-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 5000; flex-direction: column; align-items: center; justify-content: center; padding: 10px; }
+        .player-container { width: 100%; max-width: 640px; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden; }
+        .timer-bar { width: 100%; max-width: 640px; height: 6px; background: #333; margin-top: 15px; border-radius: 10px; overflow: hidden; }
+        #progress { width: 0%; height: 100%; background: var(--p); transition: 0.1s linear; }
+        .timer-text { color: #fff; font-size: 18px; font-weight: 800; margin-top: 10px; }
+        .auth-m { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(5px); }
+        .auth-box { background: var(--s); width: 100%; max-width: 320px; border-radius: 25px; padding: 30px; text-align: center; }
+        .drop-menu { display: none; position: absolute; top: 65px; right: 16px; background: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-radius: 15px; padding: 8px; z-index: 1500; border: 1px solid #eee; }
+        .drop-menu button { background: #fee2e2; color: var(--p); border: none; padding: 10px 20px; border-radius: 10px; font-weight: 700; font-size: 12px; width: 100%; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="video-modal">
+        <div class="player-container"><div id="player"></div></div>
+        <div class="timer-bar"><div id="progress"></div></div>
+        <div class="timer-text" id="timer-display">Waiting for play...</div>
+    </div>
+
+    <nav class="nav">
+        <div class="logo">SubBoost Pro</div>
+        <div class="nav-right">
+            <div class="coin-p" id="coin-ui"><i class="fas fa-coins"></i> <span id="user-bal">0</span></div>
+            <img src="" id="u-avatar" class="u-pic" onclick="toggleMenu()">
+            <button id="l-btn" onclick="openAuth()" style="border:none; background:#f1f5f9; padding:6px 14px; border-radius:50px; font-weight:700; font-size:11px;">LOGIN</button>
+        </div>
+        <div id="logout-menu" class="drop-menu"><button onclick="logout()">LOGOUT</button></div>
+    </nav>
+
+    <div class="tabs">
+        <div class="tab active">VIEWS</div>
+        <div class="tab">SUBSCRIBE</div>
+        <div class="tab">REFER</div>
+    </div>
+
+    <div class="container">
+        <div id="ref-panel" class="ref-card">
+            <p style="font-size:11px; font-weight:600;">Share & Earn 5,000 Coins</p>
+            <div id="ref-code-id" class="ref-id-display">--------</div>
+            <button class="btn-copy" onclick="copyReferral()">COPY LINK</button>
+        </div>
+        <div id="video-feed"></div>
+    </div>
+
+    <div id="auth-modal" class="auth-m">
+        <div class="auth-box">
+            <i class="fab fa-youtube" style="font-size:50px; color:var(--p); margin-bottom:15px;"></i>
+            <h3 style="margin-bottom:15px; font-size:18px;">Welcome Back</h3>
+            <button onclick="googleSignIn()" style="width:100%; background:var(--p); color:#fff; border:none; padding:14px; border-radius:15px; font-weight:700; cursor:pointer; font-size:13px;"><i class="fab fa-google"></i> SIGN IN WITH GOOGLE</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
